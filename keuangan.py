@@ -137,9 +137,6 @@ with tab1:
         neraca_formatted["Saldo"] = neraca_formatted["Saldo"].apply(format_rupiah)
         st.dataframe(neraca_formatted, use_container_width=True)
 
-# ==============================================================================
-# TAB 2: INPUT TRANSAKSI
-# ==============================================================================
 with tab2:
     st.header("Isi Transaksi Disini Sayangg")
     
@@ -169,9 +166,6 @@ with tab2:
             
             st.form_submit_button("Simpan Pengeluaran", on_click=handle_submit_pengeluaran)
 
-# ==============================================================================
-# TAB 3: EDIT/HAPUS DATA (FITUR BARU: MODAL EDIT)
-# ==============================================================================
 with tab3:
     st.header("Ringkasan semuanya disini sayangg")
     st.info("Bisa edit atau hapus data yang salah input yaa sayangg.")
@@ -247,12 +241,7 @@ with tab3:
                 st.success(f"Baris {idx_to_del_out} telah dihapus.")
                 st.rerun()
 
-# 5. Logika Modal (st.dialog)
-# ==============================================================================
-# Ini adalah "jendela pop-up" yang Anda minta.
-# Logika ini akan berjalan jika 'edit_index_pemasukan' ada di session_state
 
-# --- Dialog untuk Pemasukan ---
 if 'edit_index_pemasukan' in st.session_state:
     @st.dialog("Edit Transaksi Pemasukan")
     def edit_pemasukan_dialog():
@@ -335,3 +324,4 @@ if st.sidebar.button("Reset Semua Data", type="primary"):
     st.info("Semua data telah di-reset.")
 
     st.rerun()
+
