@@ -1,5 +1,6 @@
 streamlit
 pandas
 plotly
-GSheetsConnection
+streamlit_gsheets
+
 
