@@ -3,30 +3,22 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# 1. Konfigurasi Halaman dan Inisialisasi
-# ==============================================================================
 st.set_page_config(page_title="Keuangan pacar gipa",
                    layout="wide",
                    initial_sidebar_state="collapsed")
 
-# Judul Utama
 st.title("Rekapan Keuangan Ikhtafiaa cantekk")
 st.markdown("Biar kamu ngga input manual ya sayangg.")
 
-# Inisialisasi session_state untuk menyimpan data
 if 'df_pemasukan' not in st.session_state:
     st.session_state.df_pemasukan = pd.DataFrame(columns=["Waktu", "Jenis Uang", "Jumlah", "Keterangan"])
 
 if 'df_pengeluaran' not in st.session_state:
     st.session_state.df_pengeluaran = pd.DataFrame(columns=["Waktu", "Jenis Uang", "Kategori", "Jumlah", "Keterangan"])
 
-# Daftar Opsi
 list_jenis_uang = ["BNI", "BCA", "Shopee", "Cash", "Jago", "Gopay"]
 list_kategori = ["Makanan", "Minuman", "Jajan", "Utility", "Healing", "Lainnya"]
 
-
-# 2. Fungsi Pembantu (Helpers)
-# ==============================================================================
 
 def format_rupiah(angka):
     """Format angka menjadi string Rupiah (Rp 1.000.000)"""
@@ -45,11 +37,6 @@ def hitung_neraca():
         neraca["Saldo"] = neraca["Saldo"].sub(total_pengeluaran_per_akun, fill_value=0)
         
     return neraca
-
-# 3. Fungsi Callback (PERBAIKAN BUG AGREGAT)
-# ==============================================================================
-# Fungsi ini akan dipanggil 'on_submit' form
-# Ini memastikan 'session_state' diperbarui SEBELUM Streamlit menggambar ulang Tab 1
 
 def handle_submit_pemasukan():
     # Ambil data dari widget form menggunakan 'key'
@@ -95,17 +82,11 @@ def handle_submit_pengeluaran():
         st.error("Jumlah harus lebih besar dari 0.")
 
 
-# 4. Layout Aplikasi menggunakan Tabs
-# ==============================================================================
 tab1, tab2, tab3 = st.tabs(["Dashboard Utama", "Input Transaksi", "Edit/Hapus Data"])
 
-# ==============================================================================
-# TAB 1: DASHBOARD UTAMA
-# ==============================================================================
 with tab1:
     st.header("Ringkasan Arus Kas Ditaaa")
     
-    # Hitung total (sekarang sudah benar karena callback)
     total_pemasukan = st.session_state.df_pemasukan['Jumlah'].sum()
     total_pengeluaran = st.session_state.df_pengeluaran['Jumlah'].sum()
     sisa_uang = total_pemasukan - total_pengeluaran
@@ -352,4 +333,5 @@ if st.sidebar.button("Reset Semua Data", type="primary"):
     st.session_state.df_pemasukan = pd.DataFrame(columns=["Waktu", "Jenis Uang", "Jumlah", "Keterangan"])
     st.session_state.df_pengeluaran = pd.DataFrame(columns=["Waktu", "Jenis Uang", "Kategori", "Jumlah", "Keterangan"])
     st.info("Semua data telah di-reset.")
+
     st.rerun()
