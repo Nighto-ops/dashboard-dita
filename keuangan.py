@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection  # <-- IMPORT BARU
+from streamlit_gsheets import GSheetsConnection 
 
 # 1. Konfigurasi Halaman
 # ==============================================================================
@@ -10,11 +10,11 @@ st.set_page_config(page_title="Keuangan pacar gipa",
                    layout="wide",
                    initial_sidebar_state="collapsed")
 
-# Judul Utama (Milik Anda)
+# Judul
 st.title("Rekapan Keuangan Ikhtafiaa cantekk")
 st.markdown("Biar kamu ngga input manual ya sayangg.")
 
-# Daftar Opsi (Milik Anda)
+# Daftar Opsi
 list_jenis_uang = ["BNI", "BCA", "Shopee", "Cash", "Jago", "Gopay"]
 list_kategori = ["Makanan", "Minuman", "Jajan", "Utility", "Healing", "Lainnya"]
 # Definisikan kolom untuk konsistensi
@@ -23,11 +23,11 @@ COLS_PENGELUARAN = ["Waktu", "Jenis Uang", "Kategori", "Jumlah", "Keterangan"]
 
 # 2. Koneksi ke Google Sheets
 # ==============================================================================
-# Ini akan membaca [connections.gsheets] dari Secrets yang akan Anda buat
+# akan membaca [connections.gsheets] dari Secrets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# !!! PENTING !!!
-# Pastikan Anda memiliki dua "Sheet" (tab) di Google Sheets Anda
+# !!! PENTING !!! jangan diubah ya
+# Pastikan memiliki dua "Sheet" (tab) di spreadheet
 # dengan nama persis seperti ini:
 NAMA_SHEET_PEMASUKAN = "Pemasukan"
 NAMA_SHEET_PENGELUARAN = "Pengeluaran"
@@ -52,7 +52,6 @@ def load_data(worksheet_name, columns):
 
 # 4. Inisialisasi Session State (dari GSheets)
 # ==============================================================================
-# Ganti inisialisasi lama Anda dengan ini:
 # Kita memuat data dari GSheets saat pertama kali dijalankan
 if 'df_pemasukan' not in st.session_state:
     st.session_state.df_pemasukan = load_data(NAMA_SHEET_PEMASUKAN, COLS_PEMASUKAN)
@@ -61,7 +60,7 @@ if 'df_pengeluaran' not in st.session_state:
     st.session_state.df_pengeluaran = load_data(NAMA_SHEET_PENGELUARAN, COLS_PENGELUARAN)
 
 
-# 5. Fungsi Pembantu (Helpers) (Kode Anda, tidak berubah)
+# 5. Fungsi Pembantu (Helpers) 
 # ==============================================================================
 def format_rupiah(angka):
     """Format angka menjadi string Rupiah (Rp 1.000.000)"""
@@ -82,7 +81,7 @@ def hitung_neraca():
         
     return neraca
 
-# 6. Fungsi Callback (Update GSheets)
+# 6. Fungsi Callback
 # ==============================================================================
 # Fungsi ini sekarang akan MENULIS ke Google Sheets
 def handle_submit_pemasukan():
@@ -136,13 +135,13 @@ def handle_submit_pengeluaran():
         st.error("Jumlah harus lebih besar dari 0.")
 
 
-# 7. Layout Aplikasi (Kode Anda, tidak berubah)
+# 7. Layout Aplikasi
 # ==============================================================================
 # Menggunakan nama tab kustom Anda
 tab1, tab2, tab3 = st.tabs(["Dashboard Utama", "Input Transaksi", "Edit/Hapus Data"])
 
 # ==============================================================================
-# TAB 1: DASHBOARD UTAMA (Kode Anda, tidak berubah)
+# TAB 1: DASHBOARD UTAMA 
 # ==============================================================================
 with tab1:
     st.header("Ringkasan Arus Kas Ditaaa")
@@ -190,7 +189,7 @@ with tab1:
         st.dataframe(neraca_formatted, use_container_width=True)
 
 # ==============================================================================
-# TAB 2: INPUT TRANSAKSI (Kode Anda, tidak berubah)
+# TAB 2: INPUT TRANSAKSI 
 # ==============================================================================
 with tab2:
     st.header("Isi Transaksi Disini Sayangg")
@@ -215,7 +214,7 @@ with tab2:
             st.form_submit_button("Simpan Pengeluaran", on_click=handle_submit_pengeluaran)
 
 # ==============================================================================
-# TAB 3: EDIT/HAPUS DATA (Modifikasi GSheets)
+# TAB 3: EDIT/HAPUS DATA 
 # ==============================================================================
 with tab3:
     st.header("Ringkasan semuanya disini sayangg")
@@ -289,7 +288,7 @@ with tab3:
                 st.success(f"Baris {idx_to_del_out} telah dihapus.")
                 st.rerun()
 
-# 8. Logika Modal (st.dialog) (Modifikasi GSheets)
+# 8. Logika Modal
 # ==============================================================================
 # --- Dialog untuk Pemasukan ---
 if 'edit_index_pemasukan' in st.session_state:
