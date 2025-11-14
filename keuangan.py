@@ -14,7 +14,7 @@ st.set_page_config(page_title="Keuangan pacar gipa",
 st.title("Rekapan Keuangan Ikhtafiaa cantekk")
 st.markdown("Biar kamu ngga input manual ya sayangg.")
 
-# Daftar Opsi (Milik Anda)
+
 list_jenis_uang = ["BNI", "BCA", "Shopee", "Cash", "Jago", "Gopay"]
 list_kategori = ["Makanan", "Minuman", "Jajan", "Utility", "Healing", "Lainnya"]
 # Definisikan kolom untuk konsistensi
