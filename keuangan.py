@@ -5,7 +5,6 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection  
 
 # 1. Konfigurasi Halaman
-# ==============================================================================
 st.set_page_config(page_title="Keuangan pacar gipa",
                    layout="wide",
                    initial_sidebar_state="collapsed")
