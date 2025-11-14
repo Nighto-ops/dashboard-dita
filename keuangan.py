@@ -34,12 +34,10 @@ def load_data(worksheet_name, columns):
     """Membaca data dari GSheet dan mengembalikannya sebagai DataFrame."""
     try:
         df = conn.read(worksheet=worksheet_name, usecols=columns, ttl=5)
-        df = df.dropna(how="all") # Hapus baris kosong
-        # Konversi tipe data
+        df = df.dropna(how="all") 
         if "Waktu" in df.columns:
             df["Waktu"] = pd.to_datetime(df["Waktu"], errors='coerce') 
         if "Jumlah" in df.columns:
-            # Ini akan menghasilkan tipe float, yang menyebabkan error nanti
             df["Jumlah"] = pd.to_numeric(df["Jumlah"], errors='coerce')
         return df
     except Exception as e:
@@ -54,8 +52,7 @@ if 'df_pemasukan' not in st.session_state:
 if 'df_pengeluaran' not in st.session_state:
     st.session_state.df_pengeluaran = load_data(NAMA_SHEET_PENGELUARAN, COLS_PENGELUARAN)
 
-
-# 5. Fungsi Pembantu (Helpers) (Kode Anda, tidak berubah)
+# 5. Fungsi Pembantu (Helpers)
 # ==============================================================================
 def format_rupiah(angka):
     """Format angka menjadi string Rupiah (Rp 1.000.000)"""
@@ -94,8 +91,6 @@ def handle_submit_pemasukan():
         })
         
         new_data["Waktu"] = pd.to_datetime(new_data["Waktu"])
-        # === PERBAIKAN TIPE DATA ===
-        # Pastikan "Jumlah" juga konsisten sebagai float saat input
         new_data["Jumlah"] = pd.to_numeric(new_data["Jumlah"])
 
         st.session_state.df_pemasukan = pd.concat(
@@ -127,7 +122,6 @@ def handle_submit_pengeluaran():
         })
         
         new_data["Waktu"] = pd.to_datetime(new_data["Waktu"])
-        # === PERBAIKAN TIPE DATA ===
         new_data["Jumlah"] = pd.to_numeric(new_data["Jumlah"])
 
         st.session_state.df_pengeluaran = pd.concat(
@@ -195,8 +189,7 @@ with tab1:
             df_pie_data["Jumlah"] = pd.to_numeric(df_pie_data["Jumlah"], errors='coerce')
             df_pie = df_pie_data.groupby("Kategori")["Jumlah"].sum().reset_index()
             fig = px.pie(df_pie, values="Jumlah", names="Kategori", title="Berdasarkan Kategori")
-            # Menghapus use_container_width=True untuk perbaikan log
-            st.plotly_chart(fig) 
+            st.plotly_chart(fig) # Menghapus use_container_width=True
             
     with col_kanan:
         st.subheader("Saldo di Setiap Akun")
@@ -252,7 +245,12 @@ with tab3:
                 key="idx_edit_in"
             )
             if st.button("Buka Editor Pemasukan"):
+                # === PERBAIKAN (Mencegah dialog lain terbuka) ===
+                if 'edit_index_pengeluaran' in st.session_state:
+                    del st.session_state.edit_index_pengeluaran
                 st.session_state.edit_index_pemasukan = idx_to_edit_in
+                st.rerun() # Paksa rerun untuk dialog
+                
         with col_del_in:
             idx_to_del_in = st.number_input(
                 "Masukkan Nomor Baris Pemasukan yang mau dihapus sayangg", 
@@ -262,9 +260,16 @@ with tab3:
                 key="idx_del_in"
             )
             if st.button("Hapus Baris Pemasukan", type="primary"):
+                # === PERBAIKAN (Mencegah dialog lain terbuka) ===
+                if 'edit_index_pemasukan' in st.session_state:
+                    del st.session_state.edit_index_pemasukan
+                if 'edit_index_pengeluaran' in st.session_state:
+                    del st.session_state.edit_index_pengeluaran
+                
                 st.session_state.df_pemasukan = st.session_state.df_pemasukan.drop(
                     index=idx_to_del_in
                 ).reset_index(drop=True)
+                
                 df_to_save = st.session_state.df_pemasukan.copy()
                 df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
                 conn.update(worksheet=NAMA_SHEET_PEMASUKAN, data=df_to_save)
@@ -288,7 +293,12 @@ with tab3:
                 key="idx_edit_out"
             )
             if st.button("Buka Editor Pengeluaran"):
+                # === PERBAIKAN (Mencegah dialog lain terbuka) ===
+                if 'edit_index_pemasukan' in st.session_state:
+                    del st.session_state.edit_index_pemasukan
                 st.session_state.edit_index_pengeluaran = idx_to_edit_out
+                st.rerun() # Paksa rerun untuk dialog
+                
         with col_del_out:
             idx_to_del_out = st.number_input(
                 "Masukkan Nomor Baris Pengeluaran yang mau dihapus sayangg", 
@@ -298,9 +308,16 @@ with tab3:
                 key="idx_del_out"
             )
             if st.button("Hapus Baris Pengeluaran", type="primary"):
+                # === PERBAIKAN (Mencegah dialog lain terbuka) ===
+                if 'edit_index_pemasukan' in st.session_state:
+                    del st.session_state.edit_index_pemasukan
+                if 'edit_index_pengeluaran' in st.session_state:
+                    del st.session_state.edit_index_pengeluaran
+
                 st.session_state.df_pengeluaran = st.session_state.df_pengeluaran.drop(
                     index=idx_to_del_out
                 ).reset_index(drop=True)
+                
                 df_to_save = st.session_state.df_pengeluaran.copy()
                 df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
                 conn.update(worksheet=NAMA_SHEET_PENGELUARAN, data=df_to_save)
@@ -316,22 +333,23 @@ if 'edit_index_pemasukan' in st.session_state:
         index = st.session_state.edit_index_pemasukan
 
         # === PERBAIKAN 1 (INDEXERROR) ===
-        # Cek apakah indeks masih valid (belum dihapus)
         if index >= len(st.session_state.df_pemasukan):
             st.error("Error: Data tidak ditemukan (mungkin sudah dihapus).")
             if st.button("Tutup"):
                 del st.session_state.edit_index_pemasukan
                 st.rerun()
             return
-        # ===================================
         
         row_data = st.session_state.df_pemasukan.iloc[index]
         st.info(f"Anda sedang mengedit data baris ke-{index}")
         
-        try:
-            waktu_val = pd.to_datetime(row_data["Waktu"]).date()
-        except:
+        # === PERBAIKAN 2 (VALUEERROR) ===
+        # Cek NaT (Not a Time) secara aman
+        waktu_dt = pd.to_datetime(row_data["Waktu"])
+        if pd.isna(waktu_dt):
             waktu_val = datetime.now().date()
+        else:
+            waktu_val = waktu_dt.date()
 
         waktu = st.date_input("Waktu", value=waktu_val)
         try:
@@ -340,8 +358,7 @@ if 'edit_index_pemasukan' in st.session_state:
             default_index_jenis = 0
         jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) 
         
-        # === PERBAIKAN 2 (MixedNumericTypesError) ===
-        # Pastikan semua tipe data numerik adalah FLOAT
+        # === PERBAIKAN 3 (MixedNumericTypesError) ===
         try:
             default_jumlah = float(row_data["Jumlah"])
         except (ValueError, TypeError):
@@ -350,8 +367,7 @@ if 'edit_index_pemasukan' in st.session_state:
         jumlah = st.number_input("Jumlah (Rp)", 
                                min_value=0.0,  # Ubah ke float
                                step=1000.0, # Ubah ke float
-                               value=default_jumlah) # Gunakan nilai float
-        # =============================================
+                               value=default_jumlah)
         
         keterangan = st.text_input("Keterangan", value=row_data["Keterangan"])
 
@@ -359,7 +375,7 @@ if 'edit_index_pemasukan' in st.session_state:
             
             st.session_state.df_pemasukan.loc[index, "Waktu"] = pd.to_datetime(waktu)
             st.session_state.df_pemasukan.loc[index, "Jenis Uang"] = jenis_uang
-            st.session_state.df_pemasukan.loc[index, "Jumlah"] = float(jumlah) # Simpan sebagai float
+            st.session_state.df_pemasukan.loc[index, "Jumlah"] = float(jumlah) 
             st.session_state.df_pemasukan.loc[index, "Keterangan"] = keterangan
             
             df_to_save = st.session_state.df_pemasukan.copy()
@@ -384,15 +400,17 @@ if 'edit_index_pengeluaran' in st.session_state:
                 del st.session_state.edit_index_pengeluaran
                 st.rerun()
             return
-        # ===================================
         
         row_data = st.session_state.df_pengeluaran.iloc[index]
         st.info(f"Anda sedang mengedit data baris ke-{index}")
         
-        try:
-            waktu_val = pd.to_datetime(row_data["Waktu"]).date()
-        except:
+        # === PERBAIKAN 2 (VALUEERROR) ===
+        # Cek NaT (Not a Time) secara aman
+        waktu_dt = pd.to_datetime(row_data["Waktu"])
+        if pd.isna(waktu_dt):
             waktu_val = datetime.now().date()
+        else:
+            waktu_val = waktu_dt.date()
 
         waktu = st.date_input("Waktu", value=waktu_val)
         try:
@@ -406,7 +424,7 @@ if 'edit_index_pengeluaran' in st.session_state:
         jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) 
         kategori = st.selectbox("Kategori", list_kategori, index=default_index_kat) 
         
-        # === PERBAIKAN 2 (MixedNumericTypesError) ===
+        # === PERBAIKAN 3 (MixedNumericTypesError) ===
         try:
             default_jumlah = float(row_data["Jumlah"])
         except (ValueError, TypeError):
@@ -415,8 +433,7 @@ if 'edit_index_pengeluaran' in st.session_state:
         jumlah = st.number_input("Jumlah (Rp)", 
                                min_value=0.0,  # Ubah ke float
                                step=1000.0, # Ubah ke float
-                               value=default_jumlah) # Gunakan nilai float
-        # =============================================
+                               value=default_jumlah)
         
         keterangan = st.text_input("Keterangan", value=row_data["Keterangan"])
 
@@ -425,7 +442,7 @@ if 'edit_index_pengeluaran' in st.session_state:
             st.session_state.df_pengeluaran.loc[index, "Waktu"] = pd.to_datetime(waktu)
             st.session_state.df_pengeluaran.loc[index, "Jenis Uang"] = jenis_uang
             st.session_state.df_pengeluaran.loc[index, "Kategori"] = kategori
-            st.session_state.df_pengeluaran.loc[index, "Jumlah"] = float(jumlah) # Simpan sebagai float
+            st.session_state.df_pengeluaran.loc[index, "Jumlah"] = float(jumlah) 
             st.session_state.df_pengeluaran.loc[index, "Keterangan"] = keterangan
             
             df_to_save = st.session_state.df_pengeluaran.copy()
@@ -439,6 +456,12 @@ if 'edit_index_pengeluaran' in st.session_state:
 
 # --- Tombol Reset (Modifikasi GSheets) ---
 if st.sidebar.button("Reset Semua Data", type="primary"):
+    # === PERBAIKAN (Mencegah dialog lain terbuka) ===
+    if 'edit_index_pemasukan' in st.session_state:
+        del st.session_state.edit_index_pemasukan
+    if 'edit_index_pengeluaran' in st.session_state:
+        del st.session_state.edit_index_pengeluaran
+        
     st.session_state.df_pemasukan = pd.DataFrame(columns=COLS_PEMASUKAN)
     st.session_state.df_pengeluaran = pd.DataFrame(columns=COLS_PENGELUARAN)
     
