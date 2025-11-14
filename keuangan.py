@@ -5,6 +5,7 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection  
 
 # 1. Konfigurasi Halaman
+# ==============================================================================
 st.set_page_config(page_title="Keuangan pacar gipa",
                    layout="wide",
                    initial_sidebar_state="collapsed")
@@ -13,7 +14,7 @@ st.set_page_config(page_title="Keuangan pacar gipa",
 st.title("Rekapan Keuangan Ikhtafiaa cantekk")
 st.markdown("Biar kamu ngga input manual ya sayangg.")
 
-
+# Daftar Opsi (Milik Anda)
 list_jenis_uang = ["BNI", "BCA", "Shopee", "Cash", "Jago", "Gopay"]
 list_kategori = ["Makanan", "Minuman", "Jajan", "Utility", "Healing", "Lainnya"]
 # Definisikan kolom untuk konsistensi
@@ -22,12 +23,8 @@ COLS_PENGELUARAN = ["Waktu", "Jenis Uang", "Kategori", "Jumlah", "Keterangan"]
 
 # 2. Koneksi ke Google Sheets
 # ==============================================================================
-# Ini akan membaca [connections.gsheets] dari Secrets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# !!! PENTING !!!
-# Pastikan Anda memiliki dua "Sheet" (tab) di Google Sheets Anda
-# dengan nama persis seperti ini:
 NAMA_SHEET_PEMASUKAN = "Pemasukan"
 NAMA_SHEET_PENGELUARAN = "Pengeluaran"
 
@@ -40,20 +37,17 @@ def load_data(worksheet_name, columns):
         df = df.dropna(how="all") # Hapus baris kosong
         # Konversi tipe data
         if "Waktu" in df.columns:
-            # Selalu ubah ke datetime saat memuat
             df["Waktu"] = pd.to_datetime(df["Waktu"], errors='coerce') 
         if "Jumlah" in df.columns:
+            # Ini akan menghasilkan tipe float, yang menyebabkan error nanti
             df["Jumlah"] = pd.to_numeric(df["Jumlah"], errors='coerce')
         return df
     except Exception as e:
-        # Jika sheet tidak ada atau kosong, buat DataFrame kosong
         st.warning(f"Tidak dapat menemukan sheet '{worksheet_name}'. Membuat DataFrame baru.")
         return pd.DataFrame(columns=columns)
 
 # 4. Inisialisasi Session State (dari GSheets)
 # ==============================================================================
-# Ganti inisialisasi lama Anda dengan ini:
-# Kita memuat data dari GSheets saat pertama kali dijalankan
 if 'df_pemasukan' not in st.session_state:
     st.session_state.df_pemasukan = load_data(NAMA_SHEET_PEMASUKAN, COLS_PEMASUKAN)
 
@@ -69,10 +63,8 @@ def format_rupiah(angka):
 
 def hitung_neraca():
     """Menghitung saldo akhir untuk setiap jenis uang."""
-    # Menggunakan 'list_jenis_uang' Anda
     neraca = pd.DataFrame(index=list_jenis_uang, columns=["Saldo"], data=0.0)
     
-    # Pastikan 'Jumlah' adalah numerik sebelum dijumlahkan
     if not st.session_state.df_pemasukan.empty:
         df_pemasukan_valid = st.session_state.df_pemasukan.dropna(subset=['Jumlah'])
         total_pemasukan_per_akun = df_pemasukan_valid.groupby("Jenis Uang")["Jumlah"].sum()
@@ -87,7 +79,6 @@ def hitung_neraca():
 
 # 6. Fungsi Callback (Update GSheets)
 # ==============================================================================
-# Fungsi ini sekarang akan MENULIS ke Google Sheets
 def handle_submit_pemasukan():
     waktu_in = st.session_state.in_waktu
     jenis_uang_in = st.session_state.in_jenis
@@ -102,16 +93,15 @@ def handle_submit_pemasukan():
             "Keterangan": [keterangan_in]
         })
         
-        # === PERBAIKAN 1 ===
-        # Konversi 'Waktu' ke datetime agar konsisten dengan data yang dibaca
         new_data["Waktu"] = pd.to_datetime(new_data["Waktu"])
+        # === PERBAIKAN TIPE DATA ===
+        # Pastikan "Jumlah" juga konsisten sebagai float saat input
+        new_data["Jumlah"] = pd.to_numeric(new_data["Jumlah"])
 
-        # 1. Update Session State (Lokal)
         st.session_state.df_pemasukan = pd.concat(
             [st.session_state.df_pemasukan, new_data], ignore_index=True
         )
-        # 2. Update Google Sheets (Permanen)
-        # Konversi 'Waktu' ke string format ISO untuk GSheet (lebih aman)
+        
         df_to_save = st.session_state.df_pemasukan.copy()
         df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
         conn.update(worksheet=NAMA_SHEET_PEMASUKAN, data=df_to_save)
@@ -136,15 +126,14 @@ def handle_submit_pengeluaran():
             "Keterangan": [keterangan_out]
         })
         
-        # === PERBAIKAN 2 ===
-        # Konversi 'Waktu' ke datetime agar konsisten
         new_data["Waktu"] = pd.to_datetime(new_data["Waktu"])
+        # === PERBAIKAN TIPE DATA ===
+        new_data["Jumlah"] = pd.to_numeric(new_data["Jumlah"])
 
-        # 1. Update Session State (Lokal)
         st.session_state.df_pengeluaran = pd.concat(
             [st.session_state.df_pengeluaran, new_data], ignore_index=True
         )
-        # 2. Update Google Sheets (Permanen)
+        
         df_to_save = st.session_state.df_pengeluaran.copy()
         df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
         conn.update(worksheet=NAMA_SHEET_PENGELUARAN, data=df_to_save)
@@ -156,7 +145,6 @@ def handle_submit_pengeluaran():
 
 # 7. Layout Aplikasi (Kode Anda, tidak berubah)
 # ==============================================================================
-# Menggunakan nama tab kustom Anda
 tab1, tab2, tab3 = st.tabs(["Dashboard Utama", "Input Transaksi", "Edit/Hapus Data"])
 
 # ==============================================================================
@@ -165,7 +153,6 @@ tab1, tab2, tab3 = st.tabs(["Dashboard Utama", "Input Transaksi", "Edit/Hapus Da
 with tab1:
     st.header("Ringkasan Arus Kas Ditaaa")
     
-    # Pastikan data ada dan 'Jumlah' adalah numerik
     total_pemasukan = pd.to_numeric(st.session_state.df_pemasukan['Jumlah'], errors='coerce').sum()
     total_pengeluaran = pd.to_numeric(st.session_state.df_pengeluaran['Jumlah'], errors='coerce').sum()
     sisa_uang = total_pemasukan - total_pengeluaran
@@ -184,7 +171,6 @@ with tab1:
             df_grafik = pd.DataFrame()
             if not st.session_state.df_pemasukan.empty:
                 df_pemasukan_copy = st.session_state.df_pemasukan.copy()
-                # Pastikan 'Waktu' adalah datetime dan 'Jumlah' adalah numerik
                 df_pemasukan_copy["Waktu"] = pd.to_datetime(df_pemasukan_copy["Waktu"], errors='coerce')
                 df_pemasukan_copy["Jumlah"] = pd.to_numeric(df_pemasukan_copy["Jumlah"], errors='coerce')
                 
@@ -209,7 +195,8 @@ with tab1:
             df_pie_data["Jumlah"] = pd.to_numeric(df_pie_data["Jumlah"], errors='coerce')
             df_pie = df_pie_data.groupby("Kategori")["Jumlah"].sum().reset_index()
             fig = px.pie(df_pie, values="Jumlah", names="Kategori", title="Berdasarkan Kategori")
-            st.plotly_chart(fig, use_container_width=True) # Dibiarkan True agar responsif
+            # Menghapus use_container_width=True untuk perbaikan log
+            st.plotly_chart(fig) 
             
     with col_kanan:
         st.subheader("Saldo di Setiap Akun")
@@ -229,7 +216,7 @@ with tab2:
         st.subheader("Pemasukan")
         with st.form("form_pemasukan", clear_on_submit=True):
             st.date_input("Waktu", key="in_waktu")
-            st.selectbox("Jenis Uang", list_jenis_uang, key="in_jenis") # Menggunakan list Anda
+            st.selectbox("Jenis Uang", list_jenis_uang, key="in_jenis") 
             st.number_input("Jumlah (Rp)", min_value=0, step=1000, key="in_jml") 
             st.text_input("Keterangan", key="in_ket")
             st.form_submit_button("Simpan Pemasukan", on_click=handle_submit_pemasukan)
@@ -237,14 +224,14 @@ with tab2:
         st.subheader("Pengeluaran")
         with st.form("form_pengeluaran", clear_on_submit=True):
             st.date_input("Waktu", key="out_waktu")
-            st.selectbox("Jenis Uang (Sumber)", list_jenis_uang, key="out_jenis") # Menggunakan list Anda
-            st.selectbox("Kategori", list_kategori, key="out_kat") # Menggunakan list Anda
+            st.selectbox("Jenis Uang (Sumber)", list_jenis_uang, key="out_jenis") 
+            st.selectbox("Kategori", list_kategori, key="out_kat") 
             st.number_input("Jumlah (Rp)", min_value=0, step=1000, key="out_jml")
             st.text_input("Keterangan", key="out_ket")
             st.form_submit_button("Simpan Pengeluaran", on_click=handle_submit_pengeluaran)
 
 # ==============================================================================
-# TAB 3: EDIT/HAPUS DATA (Modifikasi GSheets)
+# TAB 3: EDIT/HAPUS DATA (Perbaikan Bug)
 # ==============================================================================
 with tab3:
     st.header("Ringkasan semuanya disini sayangg")
@@ -252,7 +239,6 @@ with tab3:
 
     # --- Panel Pemasukan ---
     st.subheader("Data Pemasukan")
-    # Menghapus use_container_width=True untuk perbaikan log
     st.dataframe(st.session_state.df_pemasukan) 
     
     if not st.session_state.df_pemasukan.empty:
@@ -276,11 +262,9 @@ with tab3:
                 key="idx_del_in"
             )
             if st.button("Hapus Baris Pemasukan", type="primary"):
-                # 1. Update Session State
                 st.session_state.df_pemasukan = st.session_state.df_pemasukan.drop(
                     index=idx_to_del_in
                 ).reset_index(drop=True)
-                # 2. Update Google Sheets
                 df_to_save = st.session_state.df_pemasukan.copy()
                 df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
                 conn.update(worksheet=NAMA_SHEET_PEMASUKAN, data=df_to_save)
@@ -291,7 +275,6 @@ with tab3:
 
     # --- Panel Pengeluaran ---
     st.subheader("Data Pengeluaran")
-    # Menghapus use_container_width=True untuk perbaikan log
     st.dataframe(st.session_state.df_pengeluaran) 
 
     if not st.session_state.df_pengeluaran.empty:
@@ -315,29 +298,37 @@ with tab3:
                 key="idx_del_out"
             )
             if st.button("Hapus Baris Pengeluaran", type="primary"):
-                # 1. Update Session State
                 st.session_state.df_pengeluaran = st.session_state.df_pengeluaran.drop(
                     index=idx_to_del_out
                 ).reset_index(drop=True)
-                # 2. Update Google Sheets
                 df_to_save = st.session_state.df_pengeluaran.copy()
                 df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
                 conn.update(worksheet=NAMA_SHEET_PENGELUARAN, data=df_to_save)
                 st.success(f"Baris {idx_to_del_out} telah dihapus.")
                 st.rerun()
 
-# 8. Logika Modal (st.dialog) (Modifikasi GSheets)
+# 8. Logika Modal (st.dialog) (Perbaikan Bug)
 # ==============================================================================
 # --- Dialog untuk Pemasukan ---
 if 'edit_index_pemasukan' in st.session_state:
     @st.dialog("Edit Transaksi Pemasukan")
     def edit_pemasukan_dialog():
         index = st.session_state.edit_index_pemasukan
+
+        # === PERBAIKAN 1 (INDEXERROR) ===
+        # Cek apakah indeks masih valid (belum dihapus)
+        if index >= len(st.session_state.df_pemasukan):
+            st.error("Error: Data tidak ditemukan (mungkin sudah dihapus).")
+            if st.button("Tutup"):
+                del st.session_state.edit_index_pemasukan
+                st.rerun()
+            return
+        # ===================================
+        
         row_data = st.session_state.df_pemasukan.iloc[index]
         st.info(f"Anda sedang mengedit data baris ke-{index}")
         
         try:
-            # Konversi ke datetime lalu ambil .date()
             waktu_val = pd.to_datetime(row_data["Waktu"]).date()
         except:
             waktu_val = datetime.now().date()
@@ -347,20 +338,30 @@ if 'edit_index_pemasukan' in st.session_state:
             default_index_jenis = list_jenis_uang.index(row_data["Jenis Uang"])
         except ValueError:
             default_index_jenis = 0
-        jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) # Menggunakan list Anda
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000, value=row_data["Jumlah"])
+        jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) 
+        
+        # === PERBAIKAN 2 (MixedNumericTypesError) ===
+        # Pastikan semua tipe data numerik adalah FLOAT
+        try:
+            default_jumlah = float(row_data["Jumlah"])
+        except (ValueError, TypeError):
+            default_jumlah = 0.0
+            
+        jumlah = st.number_input("Jumlah (Rp)", 
+                               min_value=0.0,  # Ubah ke float
+                               step=1000.0, # Ubah ke float
+                               value=default_jumlah) # Gunakan nilai float
+        # =============================================
+        
         keterangan = st.text_input("Keterangan", value=row_data["Keterangan"])
 
         if st.button("Simpan Perubahan"):
             
-            # === PERBAIKAN 3 ===
-            # Selalu simpan sebagai datetime
             st.session_state.df_pemasukan.loc[index, "Waktu"] = pd.to_datetime(waktu)
             st.session_state.df_pemasukan.loc[index, "Jenis Uang"] = jenis_uang
-            st.session_state.df_pemasukan.loc[index, "Jumlah"] = jumlah
+            st.session_state.df_pemasukan.loc[index, "Jumlah"] = float(jumlah) # Simpan sebagai float
             st.session_state.df_pemasukan.loc[index, "Keterangan"] = keterangan
             
-            # 2. Update Google Sheets
             df_to_save = st.session_state.df_pemasukan.copy()
             df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
             conn.update(worksheet=NAMA_SHEET_PEMASUKAN, data=df_to_save)
@@ -375,6 +376,16 @@ if 'edit_index_pengeluaran' in st.session_state:
     @st.dialog("Edit Transaksi Pengeluaran")
     def edit_pengeluaran_dialog():
         index = st.session_state.edit_index_pengeluaran
+
+        # === PERBAIKAN 1 (INDEXERROR) ===
+        if index >= len(st.session_state.df_pengeluaran):
+            st.error("Error: Data tidak ditemukan (mungkin sudah dihapus).")
+            if st.button("Tutup"):
+                del st.session_state.edit_index_pengeluaran
+                st.rerun()
+            return
+        # ===================================
+        
         row_data = st.session_state.df_pengeluaran.iloc[index]
         st.info(f"Anda sedang mengedit data baris ke-{index}")
         
@@ -392,22 +403,31 @@ if 'edit_index_pengeluaran' in st.session_state:
             default_index_kat = list_kategori.index(row_data["Kategori"])
         except ValueError:
             default_index_kat = 0
-        jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) # Menggunakan list Anda
-        kategori = st.selectbox("Kategori", list_kategori, index=default_index_kat) # Menggunakan list Anda
-        jumlah = st.number_input("Jumlah (Rp)", min_value=0, step=1000, value=row_data["Jumlah"])
+        jenis_uang = st.selectbox("Jenis Uang", list_jenis_uang, index=default_index_jenis) 
+        kategori = st.selectbox("Kategori", list_kategori, index=default_index_kat) 
+        
+        # === PERBAIKAN 2 (MixedNumericTypesError) ===
+        try:
+            default_jumlah = float(row_data["Jumlah"])
+        except (ValueError, TypeError):
+            default_jumlah = 0.0
+
+        jumlah = st.number_input("Jumlah (Rp)", 
+                               min_value=0.0,  # Ubah ke float
+                               step=1000.0, # Ubah ke float
+                               value=default_jumlah) # Gunakan nilai float
+        # =============================================
+        
         keterangan = st.text_input("Keterangan", value=row_data["Keterangan"])
 
         if st.button("Simpan Perubahan"):
             
-            # === PERBAIKAN 4 ===
-            # Selalu simpan sebagai datetime
             st.session_state.df_pengeluaran.loc[index, "Waktu"] = pd.to_datetime(waktu)
             st.session_state.df_pengeluaran.loc[index, "Jenis Uang"] = jenis_uang
             st.session_state.df_pengeluaran.loc[index, "Kategori"] = kategori
-            st.session_state.df_pengeluaran.loc[index, "Jumlah"] = jumlah
+            st.session_state.df_pengeluaran.loc[index, "Jumlah"] = float(jumlah) # Simpan sebagai float
             st.session_state.df_pengeluaran.loc[index, "Keterangan"] = keterangan
             
-            # 2. Update Google Sheets
             df_to_save = st.session_state.df_pengeluaran.copy()
             df_to_save['Waktu'] = df_to_save['Waktu'].astype(str)
             conn.update(worksheet=NAMA_SHEET_PENGELUARAN, data=df_to_save)
@@ -419,12 +439,9 @@ if 'edit_index_pengeluaran' in st.session_state:
 
 # --- Tombol Reset (Modifikasi GSheets) ---
 if st.sidebar.button("Reset Semua Data", type="primary"):
-    # 1. Hapus Session State
     st.session_state.df_pemasukan = pd.DataFrame(columns=COLS_PEMASUKAN)
     st.session_state.df_pengeluaran = pd.DataFrame(columns=COLS_PENGELUARAN)
     
-    # 2. Hapus Google Sheets (Clear)
-    # Kita update dengan DataFrame kosong
     conn.update(worksheet=NAMA_SHEET_PEMASUKAN, data=st.session_state.df_pemasukan)
     conn.update(worksheet=NAMA_SHEET_PENGELUARAN, data=st.session_state.df_pengeluaran)
     
